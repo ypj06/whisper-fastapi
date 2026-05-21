@@ -1,0 +1,23 @@
+# 复制为 .dev.vars 即可在 `wrangler dev` 时被自动加载（不会进入 git）。
+#
+# 必填：Google AI Studio API key  https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=your-gemini-api-key
+
+# 可选（强烈推荐）：Cloudflare AI Gateway 的 google-ai-studio base URL。
+# 配置后所有 Gemini 流量经 AI Gateway 转发，可绕开 Gemini 对部分
+# Cloudflare 出口 IP 的地区限制（"User location is not supported for the API use."），
+# 并自带缓存 / 限速 / 计量 / 可观测能力。
+# Cloudflare Dashboard → AI → AI Gateway → Create Gateway，然后填 base URL：
+# CF_AIG_URL=https://gateway.ai.cloudflare.com/v1/<your-account-id>/<gateway-name>/google-ai-studio
+
+# 可选：AI Gateway 启用了 "Authenticated Gateway" 时所需的 Bearer token。
+# CF_AIG_TOKEN=
+
+# 可选：webshare 代理（host:port:user:pass），用于绕过 YouTube 同意墙。
+# 详见 README "字幕抓取与代理"。
+# WEBSHARE_PROXY=
+
+# 可选：YouTube 登录 cookie 串（"name=value; name2=value2; ..."）。
+# 部分数据中心 IP 会触发 YouTube 的 "Sign in to confirm you're not a bot"，
+# 配上完整的登录 cookie 后可绕开。详见 README。
+# YT_COOKIE=

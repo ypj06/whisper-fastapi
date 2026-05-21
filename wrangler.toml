@@ -1,0 +1,36 @@
+name = "youtube-knowledge-extractor"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# 打开 Workers Observability，便于 `wrangler tail` 之外通过 Cloudflare Dashboard 看实时日志
+[observability]
+enabled = true
+
+# 前端 SPA 通过 Workers Assets 直接分发
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# 会话上下文存储（用于章节 5W1H：前端不重传文章，仅带 sessionId）
+# 首次部署前请创建两个 KV namespace 并把返回的 id / preview_id 填到下方：
+#   wrangler kv namespace create SESSIONS
+#   wrangler kv namespace create SESSIONS --preview
+# 本地 `wrangler dev` 会使用 miniflare 的内存 KV，可以不改 id 直接跑。
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_YOUR_KV_ID"
+preview_id = "REPLACE_WITH_YOUR_PREVIEW_KV_ID"
+
+[vars]
+# YouTube 字幕抓取失败时是否回落到内置 demo 字幕，让产品始终可用
+DEMO_FALLBACK = "true"
+# Gemini 模型（任意 generativelanguage.googleapis.com 支持的模型名）
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# Secrets（不写在文件里，通过 `wrangler secret put <NAME>` 注入）：
+#   GEMINI_API_KEY   必填，AI Studio key https://aistudio.google.com/app/apikey
+#   CF_AIG_URL       可选，Cloudflare AI Gateway base URL（绕开 Gemini 地区限制）
+#   CF_AIG_TOKEN     可选，AI Gateway 启用 Authenticated Gateway 时所需的 Bearer token
+#   WEBSHARE_PROXY   可选，webshare 代理 host:port:user:pass，用于绕过 YouTube 同意墙
+#   YT_COOKIE        可选，YouTube 登录 cookie 串，缓解数据中心 IP 的 bot 检测

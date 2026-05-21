@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>视见 · YouTube 知识萃取</title>
+    <meta name="description" content="把任意 YouTube 视频字幕，蒸馏成一篇结构清晰的中文长文。支持流式输出与章节级 5W1H 总结。" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "markdown-it": "https://esm.sh/markdown-it@14.1.0",
+          "dompurify": "https://esm.sh/dompurify@3.1.7"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- 顶部光晕背景 -->
+    <div class="aurora" aria-hidden="true">
+      <span class="aurora__blob aurora__blob--1"></span>
+      <span class="aurora__blob aurora__blob--2"></span>
+      <span class="aurora__blob aurora__blob--3"></span>
+      <div class="aurora__grid"></div>
+    </div>
+
+    <header class="site-header">
+      <div class="brand">
+        <div class="brand__mark">
+          <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7dd3fc" />
+                <stop offset="100%" stop-color="#a78bfa" />
+              </linearGradient>
+            </defs>
+            <path d="M6 6 L26 6 L16 26 Z" fill="none" stroke="url(#g1)" stroke-width="2.2" stroke-linejoin="round" />
+            <circle cx="16" cy="14" r="2.4" fill="url(#g1)" />
+          </svg>
+        </div>
+        <div class="brand__text">
+          <strong>视见 Vidsight</strong>
+          <span>洞察视频内容</span>
+        </div>
+      </div>
+      <nav class="site-header__links">
+        <a href="https://ai.google.dev/" target="_blank" rel="noopener">Gemini</a>
+        <a href="https://developers.cloudflare.com/workers/" target="_blank" rel="noopener">Workers</a>
+        <a id="repo-link" href="https://github.com/lianyixin/vidsight" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <!-- 左侧：输入与配置 -->
+      <aside class="panel panel--inputs" aria-label="生成配置">
+        <section class="card hero-card">
+          <h1>把视频，<br />蒸馏成一篇文章。</h1>
+          <p class="hero-card__sub">
+            粘贴任意带字幕的 YouTube 链接，Gemini 会实时为你写出一篇结构清晰的中文深度文章；
+            点击章节标题旁的 <code>5W1H</code> 即可得到该章节的结构化总结。
+          </p>
+        </section>
+
+        <form id="gen-form" class="card form-card" autocomplete="off" novalidate>
+          <label class="field">
+            <span class="field__label">YouTube 链接</span>
+            <div class="field__input-wrap">
+              <svg class="field__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path fill="currentColor" d="M21.6 7.2a2.5 2.5 0 0 0-1.76-1.76C18.27 5 12 5 12 5s-6.27 0-7.84.44A2.5 2.5 0 0 0 2.4 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .4 4.8 2.5 2.5 0 0 0 1.76 1.76C5.73 19 12 19 12 19s6.27 0 7.84-.44a2.5 2.5 0 0 0 1.76-1.76A26 26 0 0 0 22 12a26 26 0 0 0-.4-4.8ZM10 15V9l5.2 3Z" />
+              </svg>
+              <input
+                id="video-url"
+                name="url"
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=xRh2sVcNXQ8"
+                required
+              />
+            </div>
+            <div class="field__hint">
+              <button type="button" class="link-btn" id="fill-demo">使用演示视频</button>
+              <span class="dot">·</span>
+              <label class="checkbox">
+                <input type="checkbox" id="force-demo" />
+                <span>强制使用演示字幕</span>
+              </label>
+            </div>
+          </label>
+
+          <details class="advanced" id="advanced">
+            <summary>
+              <span class="advanced__title">高级生成要求</span>
+              <span class="advanced__chev" aria-hidden="true">▾</span>
+            </summary>
+            <div class="advanced__body">
+              <div class="field-row">
+                <label class="field">
+                  <span class="field__label">任务类型</span>
+                  <input id="pref-task" type="text" placeholder="如：深度解读 / 速览 / 金句提炼" />
+                </label>
+                <label class="field">
+                  <span class="field__label">输出风格</span>
+                  <input id="pref-style" type="text" placeholder="如：学术 / 轻松口语 / 商业洞察" />
+                </label>
+              </div>
+              <div class="field-row">
+                <label class="field">
+                  <span class="field__label">目标受众</span>
+                  <input id="pref-audience" type="text" placeholder="如：投资人 / 开发者 / 普通读者" />
+                </label>
+                <label class="field">
+                  <span class="field__label">约束条件</span>
+                  <input id="pref-constraints" type="text" placeholder="如：不超过 3000 字 / 必须包含具体数据" />
+                </label>
+              </div>
+              <div class="chips" role="group" aria-label="快速预设">
+                <button type="button" class="chip" data-preset="exec">
+                  <span class="chip__dot"></span>商业洞察 · 给投资人
+                </button>
+                <button type="button" class="chip" data-preset="dev">
+                  <span class="chip__dot"></span>技术深读 · 给开发者
+                </button>
+                <button type="button" class="chip" data-preset="casual">
+                  <span class="chip__dot"></span>轻松口语 · 给大众
+                </button>
+              </div>
+              <div class="advanced__actions">
+                <button type="button" class="link-btn" id="clear-prefs">清空高级要求</button>
+              </div>
+            </div>
+          </details>
+
+          <button type="submit" class="btn btn--primary" id="submit-btn">
+            <span class="btn__text">开始生成</span>
+            <svg class="btn__arrow" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          <p class="form-card__note">
+            首次使用需在服务端配置 <code>GEMINI_API_KEY</code>。生成过程会
+            <strong>流式输出</strong>，可随时停止。
+          </p>
+        </form>
+      </aside>
+
+      <!-- 右侧：流式渲染的文章 -->
+      <section class="panel panel--output" aria-label="生成结果">
+        <!-- 顶部状态条 -->
+        <div class="status-bar" id="status-bar" hidden>
+          <div class="status-bar__left">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">空闲</span>
+          </div>
+          <div class="status-bar__right">
+            <span class="meta-chip" id="meta-source" hidden></span>
+            <span class="meta-chip" id="meta-title" hidden></span>
+            <a class="meta-chip meta-chip--link" id="meta-link" hidden target="_blank" rel="noopener">在 YouTube 打开 ↗</a>
+            <button type="button" class="ghost-btn" id="transcript-btn" hidden>查看字幕</button>
+            <button type="button" class="ghost-btn" id="stop-btn" hidden>停止</button>
+          </div>
+        </div>
+
+        <!-- 空态 -->
+        <div class="empty" id="empty-state">
+          <div class="empty__intro">
+            <p class="empty__eyebrow">开始之前</p>
+            <h2>请输入 YouTube 视频链接</h2>
+            <p>粘贴带字幕的视频链接，点击「开始生成」。也可以直接选择下面的示例视频快速体验。</p>
+          </div>
+
+          <div class="inspiration">
+            <p class="inspiration__title">或者试试这些视频</p>
+            <div class="inspiration__list">
+              <button type="button" class="inspo" data-url="https://www.youtube.com/watch?v=xRh2sVcNXQ8">
+                <span class="inspo__tag">演示视频</span>
+                <span class="inspo__title">对话 Marc Andreessen：AI 革命的万亿美金之问</span>
+                <span class="inspo__sub">a16z · 投资 · 商业 · AI 基础设施</span>
+              </button>
+              <button type="button" class="inspo" data-url="https://www.youtube.com/watch?v=qTogNUV3CAI">
+                <span class="inspo__tag">技术分享</span>
+                <span class="inspo__title">Andrej Karpathy：Deep Dive into LLMs</span>
+                <span class="inspo__sub">3h+ 长视频 · 模型架构 · 训练 · 应用</span>
+              </button>
+              <button type="button" class="inspo" data-url="https://www.youtube.com/watch?v=hM_h0UA7upI">
+                <span class="inspo__tag">产品访谈</span>
+                <span class="inspo__title">Sam Altman：The Future of OpenAI</span>
+                <span class="inspo__sub">访谈 · 产品愿景 · 组织 · 成本</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 字幕降级提示 -->
+        <div class="notice" id="fallback-notice" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="currentColor" d="M12 2L1 21h22L12 2zm0 4.5L19.5 19h-15L12 6.5zM11 10h2v5h-2v-5zm0 6h2v2h-2v-2z" />
+          </svg>
+          <div>
+            <strong>正在使用演示字幕</strong>
+            <p id="fallback-reason">YouTube 字幕暂时无法直连获取，已自动回落到内置 Demo 字幕，仍可演示完整能力。</p>
+          </div>
+        </div>
+
+        <!-- 流式文章 -->
+        <article class="article" id="article" hidden>
+          <div class="article__topline">
+            <div class="article__meta" id="article-meta"></div>
+            <button type="button" class="ghost-btn article__copy" id="copy-article-btn" hidden>复制全文</button>
+          </div>
+          <div class="article__body" id="article-body"></div>
+          <div class="streaming-cursor" id="streaming-cursor" hidden></div>
+        </article>
+
+        <!-- 错误 -->
+        <div class="error-box" id="error-box" hidden>
+          <strong>出错了</strong>
+          <p id="error-text"></p>
+        </div>
+      </section>
+    </main>
+
+    <button type="button" class="back-to-top" id="back-to-top" hidden aria-label="回到页面顶部">↑</button>
+
+    <!-- 5W1H 抽屉 -->
+    <div class="drawer" id="drawer" hidden aria-hidden="true">
+      <div class="drawer__scrim" data-close></div>
+      <aside class="drawer__panel" role="dialog" aria-labelledby="drawer-title">
+        <header class="drawer__head">
+          <div>
+            <p class="drawer__eyebrow" id="drawer-eyebrow">5W1H · 章节结构化总结</p>
+            <h3 id="drawer-title">加载中…</h3>
+          </div>
+          <button class="icon-btn" data-close aria-label="关闭">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6l-12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </header>
+        <div class="drawer__body" id="drawer-body">
+          <div class="skeleton-grid">
+            <div class="skeleton-card"></div><div class="skeleton-card"></div>
+            <div class="skeleton-card"></div><div class="skeleton-card"></div>
+            <div class="skeleton-card"></div><div class="skeleton-card"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="site-footer">
+      <span>Built with Gemini · Cloudflare Workers · TypeScript</span>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

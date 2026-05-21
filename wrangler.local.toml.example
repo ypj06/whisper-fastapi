@@ -1,0 +1,33 @@
+# 复制为 wrangler.local.toml 即可，不会进入 git。
+#
+# 自己部署时把这份模板里的占位换成你自己的真实值；通过下面两条命令使用：
+#   npm run dev:my       # 等价于 wrangler dev    --config wrangler.local.toml
+#   npm run deploy:my    # 等价于 wrangler deploy --config wrangler.local.toml
+#
+# 这样仓库根目录的 wrangler.toml 保持"开源模板"形态，永远不需要本地改动。
+
+name = "youtube-knowledge-extractor"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# 替换成你自己的 KV namespace id：
+#   wrangler kv namespace create SESSIONS
+#   wrangler kv namespace create SESSIONS --preview
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "PUT_YOUR_KV_ID_HERE"
+preview_id = "PUT_YOUR_PREVIEW_KV_ID_HERE"
+
+[vars]
+DEMO_FALLBACK = "true"
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# Secrets 仍然走 `wrangler secret put <NAME>`，不要写在这里。
