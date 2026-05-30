@@ -1,0 +1,13 @@
+# Python 缓存文件
+__pycache__/
+*.pyc
+
+# 大文件（避免推送到 GitHub 导致失败）
+model.bin
+*.mp4
+*.srt
+
+# 配置文件（可选，看你是否需要上传）
+# config.json
+# tokenizer.json
+# vocabulary.txt
