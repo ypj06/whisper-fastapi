@@ -28,7 +28,8 @@ This project provides a simple web-based tool for transcribing audio and video f
 ---
 
 ## 📁 Project Structure
-whisper-fastapi/
+whisper-fastapi
+/
 ├── backend_whisper.py # FastAPI backend (model loading & transcription logic)
 ├── frontend_whisper.py # Streamlit frontend (web UI)
 └── requirements.txt # Python dependencies
