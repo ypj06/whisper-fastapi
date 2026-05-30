@@ -28,12 +28,11 @@ This project provides a simple web-based tool for transcribing audio and video f
 ---
 
 ## 📁 Project Structure
-'''
+
 whisper-fastapi/
-├── backend_whisper.py # FastAPI backend (model loading & transcription logic)
-├── frontend_whisper.py # Streamlit frontend (web UI)
-└── requirements.txt # Python dependencies
-'''
+├── backend_whisper.py    # FastAPI backend (model loading & transcription logic)
+├── frontend_whisper.py   # Streamlit frontend (web UI)
+└── requirements.txt      # Python dependencies
 
 
 ---
@@ -49,20 +48,20 @@ whisper-fastapi/
 
 
 ## 📝 Usage Guide
-1. **Batch Directory Processing**
-   
-1.In the Streamlit sidebar, select the model size, language, and output formats
-2.Enter the path to your media files folder
-3.Click Load Model (if not already loaded)
-4.Click Start Batch Transcription
-5.SRT and TXT files will be generated in the same folder as your media files
 
-2. **Single File Upload**
+### 1. Batch Directory Processing
+1.  In the Streamlit sidebar, select the model size, language, and output formats
+2.  Enter the path to your media files folder
+3.  Click **Load Model** (if not already loaded)
+4.  Click **Start Batch Transcription**
+5.  SRT and TXT files will be generated in the same folder as your media files
 
-1.Go to the Single File Upload tab
-2.Upload an audio/video file
-3.Select the language and output format
-4.Click Transcribe
-5.Download the generated SRT and TXT files directly from the web interface
+---
 
+### 2. Single File Upload
+1.  Go to the **Single File Upload** tab
+2.  Upload an audio/video file
+3.  Select the language and output format
+4.  Click **Transcribe**
+5.  Download the generated SRT and TXT files directly from the web interface
 
