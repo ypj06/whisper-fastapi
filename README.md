@@ -6,13 +6,15 @@ This project provides a simple web-based tool for transcribing audio and video f
 
 ## 📸 Demo Preview
 
+## 📸 Demo Preview
+
 | FastAPI Swagger UI | Streamlit Web Interface |
 | :---: | :---: |
-| <img width="2487" height="1371" alt="image" src="https://github.com/user-attachments/assets/7da66262-565c-4ffe-96e2-63ac08831024" />| |<img width="2487" height="1371" alt="image" src="https://github.com/user-attachments/assets/7da66262-565c-4ffe-96e2-63ac08831024" />||
+| <img alt="FastAPI Docs" src="https://github.com/user-attachments/assets/7da66262-565c-4ffe-96e2-63ac08831024"> | <img alt="Streamlit UI" src="https://github.com/user-attachments/assets/7da66262-565c-4ffe-96e2-63ac08831024"> |
 
-| Transcription Result (SRT Subtitle) |
-| :---: |
-| <img width="2529" height="1134" alt="image" src="https://github.com/user-attachments/assets/30177683-938a-4f7a-b3be-2491320b9a43" />|
+#### Generated SRT Subtitle File & Video Playback
+<img alt="Subtitle Result" src="https://github.com/user-attachments/assets/30177683-938a-4f7a-b3be-2491320b9a43">
+
 
 ---
 
