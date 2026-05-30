@@ -4,7 +4,6 @@ This project provides a simple web-based tool for transcribing audio and video f
 
 ---
 
-## 📸 Demo Preview
 
 ## 📸 Demo Preview
 
