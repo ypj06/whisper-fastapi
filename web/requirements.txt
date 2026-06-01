@@ -1,0 +1,19 @@
+# ASR
+faster-whisper
+torch
+
+# Web framework
+fastapi
+uvicorn
+streamlit
+requests
+
+# Audio processing (Topic 3 — 预处理管道依赖)
+librosa
+soundfile
+numpy
+scipy
+noisereduce
+
+# Visualization
+matplotlib
