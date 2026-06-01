@@ -14,6 +14,7 @@ soundfile
 numpy
 scipy
 noisereduce
+pydub
 
 # Visualization
 matplotlib

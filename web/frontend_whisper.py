@@ -107,8 +107,8 @@ with tab3:
 
     with col_left:
         uploaded_noisy = st.file_uploader(
-            "上传噪声音频",
-            type=["wav", "mp3", "m4a", "flac", "ogg"],
+            "上传噪声录音（音频或视频文件）",
+            type=["wav", "mp3", "m4a", "flac", "ogg", "mp4", "mkv", "webm", "flv", "avi", "mov"],
             key="preprocess_upload"
         )
 

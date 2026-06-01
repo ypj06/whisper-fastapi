@@ -2,7 +2,10 @@
 Audio utility functions for loading, saving, and visualizing audio files.
 
 Provides a consistent interface for audio I/O across different formats
-and sample rates, plus visualization helpers for analysis.
+(including video files that contain audio tracks) and sample rates,
+plus visualization helpers for analysis.
+
+Supported input: WAV, MP3, M4A, FLAC, OGG, MP4, MKV, WEBM, FLV, and more.
 """
 
 from pathlib import Path
@@ -13,6 +16,9 @@ import soundfile as sf
 import librosa
 import matplotlib.pyplot as plt
 
+# Video file extensions that contain audio tracks
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".webm", ".flv", ".avi", ".mov", ".wmv", ".m4v"}
+
 
 def load_audio(
     file_path: Union[str, Path],
@@ -21,10 +27,15 @@ def load_audio(
     duration: Optional[float] = None,
     offset: float = 0.0,
 ) -> Tuple[np.ndarray, int]:
-    """Load an audio file and resample to target sample rate.
+    """Load an audio or video file and resample to target sample rate.
+
+    For video files (MP4, MKV, etc.), the audio track is automatically
+    extracted using ffmpeg (via pydub). For audio files, uses librosa
+    directly. You must have ffmpeg installed on your system for video
+    file support.
 
     Args:
-        file_path: Path to the audio file.
+        file_path: Path to the audio or video file.
         target_sr: Target sample rate in Hz (default 16000 for ASR).
         mono: Convert to mono if True.
         duration: Only load up to this many seconds.
@@ -33,6 +44,16 @@ def load_audio(
     Returns:
         Tuple of (audio_samples, sample_rate).
     """
+    file_path = Path(file_path)
+    suffix = file_path.suffix.lower()
+
+    # ── Video files: extract audio track via ffmpeg/pydub ──
+    if suffix in VIDEO_EXTENSIONS:
+        return _load_audio_from_video(
+            file_path, target_sr, mono, duration, offset
+        )
+
+    # ── Audio files: use librosa directly ──
     audio, sr = librosa.load(
         str(file_path),
         sr=target_sr,
@@ -41,6 +62,67 @@ def load_audio(
         offset=offset,
     )
     return audio, sr
+
+
+def _load_audio_from_video(
+    file_path: Path,
+    target_sr: int,
+    mono: bool,
+    duration: Optional[float],
+    offset: float,
+) -> Tuple[np.ndarray, int]:
+    """Extract audio track from a video file using ffmpeg/pydub.
+
+    Falls back to librosa if pydub is not available (librosa can
+    sometimes handle video via audioread → ffmpeg).
+    """
+    try:
+        from pydub import AudioSegment
+
+        audio_segment = AudioSegment.from_file(str(file_path))
+
+        # Apply offset/duration trimming
+        if offset > 0 or duration is not None:
+            start_ms = int(offset * 1000)
+            end_ms = int((offset + duration) * 1000) if duration else len(audio_segment)
+            audio_segment = audio_segment[start_ms:end_ms]
+
+        # Convert to mono
+        if mono and audio_segment.channels > 1:
+            audio_segment = audio_segment.set_channels(1)
+
+        # Resample if needed
+        if audio_segment.frame_rate != target_sr:
+            audio_segment = audio_segment.set_frame_rate(target_sr)
+
+        # Convert to numpy array
+        samples = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
+        # pydub returns 16-bit integers; normalize to [-1, 1]
+        max_val = float(2 ** (8 * audio_segment.sample_width - 1))
+        samples = samples / max_val
+
+        return samples, target_sr
+
+    except ImportError:
+        # pydub not installed — try librosa as fallback
+        import warnings
+        warnings.warn(
+            f"pydub not installed. Attempting to load video '{file_path.name}' "
+            f"via librosa (requires ffmpeg). Install pydub for more reliable "
+            f"video support: pip install pydub"
+        )
+        audio, sr = librosa.load(
+            str(file_path),
+            sr=target_sr,
+            mono=mono,
+            duration=duration,
+            offset=offset,
+        )
+        return audio, sr
+
+
+# Alias for clarity when the caller explicitly expects video files
+load_media = load_audio
 
 
 def save_audio(
