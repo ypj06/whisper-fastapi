@@ -59,4 +59,4 @@ This step installs all required libraries for both the FastAPI backend and Strea
    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
    
    # For international users
-   # pip install -r requirements.txt 
+   pip install -r requirements.txt 
