@@ -15,8 +15,84 @@ import torch
 from faster_whisper import WhisperModel
 
 # ── 导入音频预处理管道 (Topic 3) ──
-# web/ 目录在项目根目录下，src/ 在上一级
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# ============================================================
+# 自动定位项目根目录（包含 src/ 的文件夹）。
+# 支持多种运行场景：直接运行 / 从别处启动 / 只 clone 了 web 文件夹。
+# ============================================================
+
+def _find_project_root() -> Path:
+    """
+    从当前文件位置向上查找包含 src/preprocessing/pipeline.py 的目录。
+    支持多种目录结构：
+
+      🌟 你的电脑:  web/ 在项目根内
+          local-audio-preprocessing-asr/
+          ├── src/
+          └── web/              ← backend_whisper.py
+
+      🌟 别人的电脑:  web/ 与项目根并列
+          some-folder/
+          ├── local-audio-preprocessing-asr/
+          │   └── src/
+          └── web/              ← backend_whisper.py
+
+    采用多策略回退：
+      1) ../src/                        （web 在项目根内）
+      2) 向上遍历祖先直接找 src/
+      3) 向上遍历祖先的兄弟目录找 src/   （web 与项目根并列）
+    如果全部失败，打印清晰错误信息告知用户如何修复。
+    """
+    this_file = Path(__file__).resolve()
+    marker = Path("src/preprocessing/pipeline.py")
+
+    # ── 策略 1: web/ 就在项目根里面 ──
+    candidate = this_file.parent.parent
+    if (candidate / marker).exists():
+        return candidate
+
+    # ── 策略 2: web/ 在嵌套目录里，祖先自身有 src/ ──
+    for ancestor in this_file.parents:
+        if (ancestor / marker).exists():
+            return ancestor
+
+    # ── 策略 3: web/ 与 local-audio-preprocessing-asr/ 并列 ──
+    for ancestor in this_file.parents:
+        try:
+            for subdir in ancestor.iterdir():
+                if subdir.is_dir() and (subdir / marker).exists():
+                    return subdir
+        except PermissionError:
+            continue
+
+    # ── 全部失败 — 打印修复指南 ──
+    raise RuntimeError(
+        "\n" + "=" * 65 + "\n"
+        "  无法找到 src/ 模块（Topic 3 音频预处理管道）\n"
+        "  " + "-" * 55 + "\n"
+        "  当前文件位置: {}\n".format(str(this_file)) +
+        "  期望找到:     .../src/preprocessing/pipeline.py\n"
+        "\n"
+        "  🔧 请选择以下任一方法修复：\n"
+        "  ─────────────────────────────────────────────\n"
+        "  方法 1: 把 web/ 放到项目根里\n"
+        "    local-audio-preprocessing-asr/\n"
+        "    ├── src/\n"
+        "    └── web/   ← 把 web 文件夹移到这里面\n"
+        "\n"
+        "  方法 2: 用 pip 安装项目\n"
+        "    cd local-audio-preprocessing-asr\n"
+        "    pip install -e .\n"
+        "    然后从任何目录运行 uvicorn backend_whisper:app\n"
+        "\n"
+        "  方法 3: 设置 PYTHONPATH 指向项目根\n"
+        "    Windows: set PYTHONPATH=路径\\local-audio-preprocessing-asr\n"
+        "    Mac/Linux: export PYTHONPATH=路径/local-audio-preprocessing-asr\n"
+        "\n"
+        "=" * 65 + "\n"
+    )
+
+
+_PROJECT_ROOT = _find_project_root()
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 

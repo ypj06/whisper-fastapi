@@ -30,7 +30,15 @@ pip install -r requirements.txt
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
 
-### Basic Usage
+### 🌐 Web Interface (recommended)
+
+```bash
+streamlit run app.py
+```
+
+Opens in your browser. Upload audio → pick a preset → see before/after comparison → download clean audio. No command line needed.
+
+### CLI Usage
 
 ```python
 from src.preprocessing.pipeline import AudioPreprocessingPipeline

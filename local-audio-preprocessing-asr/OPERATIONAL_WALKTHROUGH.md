@@ -1,6 +1,34 @@
 # 实际操作完整流程：Topic 3 作为 Topic 1 的前端清洗工
 
-## 前提条件
+## ⭐ 推荐方式：Web 界面操作（无需命令行）
+
+```bash
+# 1. 打开终端，进入项目目录
+cd D:\claude\work\local-audio-preprocessing-asr
+
+# 2. 安装依赖（仅需执行一次）
+pip install -r requirements.txt
+
+# 3. 启动网页应用
+streamlit run app.py
+```
+
+浏览器会自动打开 `http://localhost:8501`。接下来的操作全部在网页上完成：
+
+1. **上传音频** — 拖拽或点击上传你的录音文件（支持 WAV/MP3/M4A/FLAC）
+2. **选择预设** — 在左侧边栏下拉框选择场景（mobile / meeting_room 等）
+3. **点击按钮** — 点 "Run Preprocessing"
+4. **查看对比** — 网页上显示原始 vs 处理后的波形图和频谱图
+5. **试听对比** — 页面内嵌音频播放器，直接听前后效果
+6. **下载结果** — 左侧边栏出现下载按钮，保存干净音频
+
+> **前后端分工说明：** 所有音频处理（降噪、VAD、信号增强）必须在 Python **后端**运行，因为 librosa / scipy / noisereduce 这些库是 C 扩展，浏览器（前端）里不存在。Streamlit 自动帮你架起后端服务并在前端渲染界面，你只看到一个网页。
+
+---
+
+## 命令行方式（备选）
+
+### 前提条件
 
 ```bash
 # 1. 打开终端（PowerShell 或 CMD）
