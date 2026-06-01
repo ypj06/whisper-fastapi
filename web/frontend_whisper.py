@@ -21,6 +21,13 @@ with st.sidebar:
         format_func=lambda x: f"{x} → {['tiny','base','small','medium','large-v1','large-v2','large-v3'][x-1]}"
     )
     languages = st.multiselect("识别语言", ["en", "zh", "ja", "ko", "fr", "de"], default=["en"])
+    target_lang = st.selectbox(
+        "字幕翻译目标语言（可选）",
+        options=[None, "zh", "en", "ja", "ko", "fr", "de"],
+        index=0,
+        format_func=lambda x: "不翻译" if x is None else x,
+        help="选择后自动翻译字幕；不选则保留原语言"
+    )
     output_formats = st.multiselect("输出格式", ["SRT 字幕", "纯文本 TXT"], default=["SRT 字幕", "纯文本 TXT"])
     overwrite = st.checkbox("强制覆写已有文件", value=False)
 
@@ -51,6 +58,7 @@ with tab1:
             payload = {
                 "directory": dir_path,
                 "languages": languages,
+                "target_lang": target_lang,
                 "model_choice": model_opt,
                 "gen_srt": "SRT 字幕" in output_formats,
                 "gen_txt": "纯文本 TXT" in output_formats,
@@ -69,13 +77,23 @@ with tab1:
 with tab2:
     st.subheader("上传单个音视频文件")
     uploaded_file = st.file_uploader("选择文件", type=["mp4", "mkv", "mp3", "wav", "m4a"], key="transcribe_upload")
-    lang_single = st.selectbox("识别语言", ["en", "zh", "ja", "ko", "fr", "de"], index=0)
+    lang_single = st.selectbox("识别语言（源语言）", ["en", "zh", "ja", "ko", "fr", "de"], index=0)
+    target_lang_single = st.selectbox(
+        "字幕翻译目标语言（可选）",
+        options=[None, "zh", "en", "ja", "ko", "fr", "de"],
+        index=0,
+        format_func=lambda x: "不翻译" if x is None else x
+    )
     out_format = st.radio("输出格式", ["srt", "txt", "both"], index=2)
 
     if uploaded_file and st.button("开始转写", type="primary"):
         with st.spinner("转写中..."):
             files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
-            params = {"language": lang_single, "output_format": out_format}
+            params = {
+                "language": lang_single,
+                "target_lang": target_lang_single,
+                "output_format": out_format
+            }
             resp = requests.post(f"{API_URL}/transcribe/file", files=files, params=params)
             if resp.ok:
                 data = resp.json()
