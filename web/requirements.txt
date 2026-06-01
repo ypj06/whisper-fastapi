@@ -1,6 +1,9 @@
+# Install:
+#   pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+#   pip install torch torchvision torchaudio -i https://pypi.tuna.tsinghua.edu.cn/simple
+
 # ASR
 faster-whisper
-torch
 
 # Web framework
 fastapi
@@ -8,7 +11,7 @@ uvicorn
 streamlit
 requests
 
-# Audio processing (Topic 3 — 预处理管道依赖)
+# Audio processing
 librosa
 soundfile
 numpy

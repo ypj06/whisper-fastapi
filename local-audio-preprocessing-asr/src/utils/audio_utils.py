@@ -10,6 +10,7 @@ Supported input: WAV, MP3, M4A, FLAC, OGG, MP4, MKV, WEBM, FLV, and more.
 
 from pathlib import Path
 from typing import Optional, Tuple, Union
+import io
 
 import numpy as np
 import soundfile as sf
@@ -73,8 +74,7 @@ def _load_audio_from_video(
 ) -> Tuple[np.ndarray, int]:
     """Extract audio track from a video file using ffmpeg/pydub.
 
-    Falls back to librosa if pydub is not available (librosa can
-    sometimes handle video via audioread → ffmpeg).
+    Falls back to librosa if pydub or ffmpeg is not available.
     """
     try:
         from pydub import AudioSegment
@@ -103,22 +103,30 @@ def _load_audio_from_video(
 
         return samples, target_sr
 
-    except ImportError:
-        # pydub not installed — try librosa as fallback
+    except (ImportError, FileNotFoundError):
+        # pydub not installed OR ffmpeg not found — try librosa as fallback
         import warnings
         warnings.warn(
-            f"pydub not installed. Attempting to load video '{file_path.name}' "
-            f"via librosa (requires ffmpeg). Install pydub for more reliable "
-            f"video support: pip install pydub"
+            f"pydub/ffmpeg not available for '{file_path.name}'. "
+            f"Falling back to librosa."
         )
-        audio, sr = librosa.load(
-            str(file_path),
-            sr=target_sr,
-            mono=mono,
-            duration=duration,
-            offset=offset,
-        )
-        return audio, sr
+        try:
+            audio, sr = librosa.load(
+                str(file_path),
+                sr=target_sr,
+                mono=mono,
+                duration=duration,
+                offset=offset,
+            )
+            return audio, sr
+        except Exception:
+            raise RuntimeError(
+                f"Cannot read '{file_path.name}'. "
+                f"Video files require ffmpeg. Install it:\n"
+                f"  Windows: download from https://ffmpeg.org/download.html\n"
+                f"           and add the bin/ folder to your system PATH.\n"
+                f"  Or use an audio-only format (.wav, .mp3, .m4a) instead."
+            )
 
 
 # Alias for clarity when the caller explicitly expects video files
@@ -127,19 +135,26 @@ load_media = load_audio
 
 def save_audio(
     audio: np.ndarray,
-    file_path: Union[str, Path],
+    file_path: Union[str, Path, io.BytesIO],
     sample_rate: int = 16000,
+    format: str = "WAV",
 ) -> None:
-    """Save audio samples to a file.
+    """Save audio samples to a file or in-memory buffer.
 
     Args:
         audio: Audio samples as numpy array.
-        file_path: Output file path.
+        file_path: Output file path, or BytesIO buffer for in-memory saving.
         sample_rate: Sample rate in Hz.
+        format: Output format (default WAV).
     """
+    # If it's a BytesIO buffer, write directly to it
+    if isinstance(file_path, io.BytesIO):
+        sf.write(file_path, audio, sample_rate, format=format)
+        return
+
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    sf.write(str(file_path), audio, sample_rate)
+    sf.write(str(file_path), audio, sample_rate, format=format)
 
 
 def normalize_audio(audio: np.ndarray, target_db: float = -20.0) -> np.ndarray:

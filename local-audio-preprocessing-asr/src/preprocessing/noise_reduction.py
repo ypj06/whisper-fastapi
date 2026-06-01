@@ -12,6 +12,7 @@ Each method is tuned for ASR-friendly output that preserves speech
 intelligibility while suppressing background noise.
 """
 
+import inspect
 from typing import Optional
 
 import numpy as np
@@ -373,4 +374,9 @@ def reduce_noise(
             f"Unknown method '{method}'. Choose from: {list(methods.keys())}"
         )
 
-    return methods[method](audio, sr, **kwargs)
+    # Only pass kwargs the target function actually accepts
+    fn = methods[method]
+    sig = inspect.signature(fn)
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+
+    return fn(audio, sr, **filtered_kwargs)

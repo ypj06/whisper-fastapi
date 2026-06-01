@@ -36,7 +36,11 @@ streamlit run app.py
 cd D:\claude\work\local-audio-preprocessing-asr
 
 # 3. 安装依赖（仅需执行一次）
-pip install -r requirements.txt
+#    使用清华镜像，国内下载快
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 4. 单独安装 PyTorch（文件太大，镜像专用线路更快）
+pip install torch torchvision torchaudio -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 4. 验证安装成功
 python -c "from src.preprocessing.pipeline import AudioPreprocessingPipeline; print('环境就绪')"

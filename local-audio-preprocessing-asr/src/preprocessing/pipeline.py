@@ -51,7 +51,7 @@ class PreprocessingConfig:
 
     # Voice Activity Detection
     enable_vad: bool = True
-    vad_method: VadMethod = VadMethod.SILERO
+    vad_method: VadMethod = VadMethod.SPECTRAL_ENTROPY
     vad_threshold: float = 0.5
     vad_min_speech_duration: float = 0.1
     vad_min_silence_duration: float = 0.3
@@ -116,7 +116,7 @@ PRESETS = {
     "desktop_high_quality": PreprocessingConfig(
         # High quality for desktop/server
         enable_vad=True,
-        vad_method=VadMethod.SILERO,
+        vad_method=VadMethod.SPECTRAL_ENTROPY,
         enable_noise_reduction=True,
         noise_reduction_method=NoiseReductionMethod.SPECTRAL_GATING,
         enable_signal_enhancement=True,
@@ -130,7 +130,7 @@ PRESETS = {
     "noisy_environment": PreprocessingConfig(
         # Aggressive preprocessing for noisy environments
         enable_vad=True,
-        vad_method=VadMethod.SILERO,
+        vad_method=VadMethod.SPECTRAL_ENTROPY,
         vad_threshold=0.3,  # More sensitive in noise
         enable_noise_reduction=True,
         noise_reduction_method=NoiseReductionMethod.MULTI_BAND,
@@ -146,7 +146,7 @@ PRESETS = {
     "meeting_room": PreprocessingConfig(
         # Optimized for multi-speaker meeting scenarios
         enable_vad=True,
-        vad_method=VadMethod.SILERO,
+        vad_method=VadMethod.SPECTRAL_ENTROPY,
         vad_threshold=0.4,
         enable_noise_reduction=True,
         noise_reduction_method=NoiseReductionMethod.WIENER,

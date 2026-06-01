@@ -223,7 +223,7 @@ with tab3:
                 with cols[1]:
                     st.metric("处理后时长", f"{data['processed_duration_s']:.1f}s")
                 with cols[2]:
-                    st.metric("VAD 片段数", data['stats']['vad_segments_detected'])
+                    st.metric("VAD 片段数", data['stats']['vad_segments'])
 
                 cols2 = st.columns(2)
                 with cols2[0]:

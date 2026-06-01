@@ -124,6 +124,10 @@ _model: Optional[WhisperModel] = None
 _device = "cuda" if torch.cuda.is_available() else "cpu"
 _compute_type = "float16" if torch.cuda.is_available() else "int8"
 
+# 模型下载/缓存目录（放在 web/models/ 里，拷贝文件夹给别人时模型跟着走）
+_MODEL_DIR = Path(__file__).resolve().parent / "models"
+
+
 # -------------------------- FastAPI 初始化 --------------------------
 app = FastAPI(title="Whisper Transcription API", version="1.0")
 
@@ -167,13 +171,75 @@ class PreprocessAndTranscribeRequest(BaseModel):
     nr_strength: Optional[float] = None
 
 # -------------------------- 工具函数 --------------------------
-def init_model(model_choice: int = 4):
+def _safe_remove(path: str):
+    """安全删除临时文件。Windows 上 pydub/librosa 可能未释放文件句柄，
+    重试 3 次后放弃（临时文件会被系统自动清理）。"""
+    import time
+    for i in range(3):
+        try:
+            os.remove(path)
+            return
+        except PermissionError:
+            if i < 2:
+                time.sleep(0.3)
+    # 最终还是删不掉就算了，TEMP 目录系统会自动清理
+    print(f"  [info] temp file will be cleaned by OS: {path}")
+
+
+def init_model(model_choice: int = 2):
+    """
+    加载 Whisper 模型。默认使用 base 版（~300MB，质量与速度平衡）。
+
+    模型文件存放在 web/models/ 目录下。首次运行会自动下载，之后读缓存。
+    拷贝整个项目文件夹给别人时，模型文件会跟着走，对方无需重新下载。
+
+    国内用户下载 HuggingFace 慢，设置镜像：
+      set HF_ENDPOINT=https://hf-mirror.com    (Windows)
+      export HF_ENDPOINT=https://hf-mirror.com (Mac/Linux)
+
+    模型大小：
+      1=tiny     (~150MB)
+      2=base     (~300MB, 默认)
+      3=small    (~1GB)
+      4=medium   (~3GB)
+      5=large-v1 (~6GB)
+      6=large-v2 (~6GB)
+      7=large-v3 (~6GB)
+    """
     global _model
     if _model is not None:
         return
-    local_model_path = r"D:\OneDrive\桌面\whisper-fastapi"
-    _model = WhisperModel(local_model_path, device=_device, compute_type=_compute_type)
-    print(f"✅ 已从本地加载模型: {local_model_path}")
+
+    model_name = MODEL_MAP.get(model_choice, "base")
+
+    # 1️⃣ 优先：web/models/ 目录里的模型（跟着项目走，拷贝给别人也能用）
+    _MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    bundled_path = _MODEL_DIR / f"faster-whisper-{model_name}"
+    if bundled_path.exists() and any(bundled_path.iterdir()):
+        _model = WhisperModel(str(bundled_path), device=_device, compute_type=_compute_type)
+        print(f"✅ 从项目内置模型加载: {bundled_path}")
+        return
+
+    # 2️⃣ 其次：用户自定义本地路径
+    local_model_path = os.environ.get(
+        "WHISPER_LOCAL_PATH",
+        r"D:\OneDrive\桌面\whisper-fastapi"
+    )
+    if os.path.isdir(local_model_path):
+        _model = WhisperModel(local_model_path, device=_device, compute_type=_compute_type)
+        print(f"✅ 已从本地加载模型: {local_model_path}")
+        return
+
+    # 3️⃣ 兜底：自动下载到 web/models/（国内用镜像：set HF_ENDPOINT=https://hf-mirror.com）
+    print(f"📥 下载 {model_name} 模型到 {bundled_path}（首次需联网，约 300MB）...")
+    print(f"   国内用户建议先设置镜像: set HF_ENDPOINT=https://hf-mirror.com")
+    _model = WhisperModel(
+        model_name,
+        device=_device,
+        compute_type=_compute_type,
+        download_root=str(_MODEL_DIR),
+    )
+    print(f"✅ 模型 {model_name} 已缓存到 {bundled_path}，下次启动无需下载")
 
 def format_timestamp(seconds: float) -> str:
     hours = int(seconds // 3600)
@@ -272,7 +338,7 @@ def _transcribe_audio(audio: np.ndarray, sr: int, language: str, output_format: 
         ]
         return result
     finally:
-        os.remove(tmp_path)
+        _safe_remove(tmp_path)
 
 # ────────────────────────────────────────────────────────────
 #  音频预处理 API 接口 (Topic 3 → Topic 1 桥梁)
@@ -355,7 +421,7 @@ async def preprocess_audio(
             "preset_used": preset,
         }
     finally:
-        os.remove(tmp_path)
+        _safe_remove(tmp_path)
 
 
 @app.post("/preprocess/audio/raw")
@@ -410,7 +476,7 @@ async def preprocess_audio_raw(
             },
         )
     finally:
-        os.remove(tmp_path)
+        _safe_remove(tmp_path)
 
 
 @app.post("/preprocess-and-transcribe")
@@ -475,14 +541,14 @@ async def preprocess_and_transcribe(
             },
         }
     finally:
-        os.remove(tmp_path)
+        _safe_remove(tmp_path)
 
 # ────────────────────────────────────────────────────────────
 #  原有 API 接口 (Whisper 转写)
 # ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 def startup_event():
-    init_model(4)  # 默认加载 medium 模型
+    init_model(2)  # 默认 base 模型（~300MB），下载到 web/models/，拷贝给别人也能用
 
 @app.get("/")
 def root():
@@ -511,7 +577,7 @@ async def transcribe_file(
             result["txt"] = generate_plain_text(temp_path, language)
         return {"filename": file.filename, **result}
     finally:
-        os.remove(temp_path)
+        _safe_remove(temp_path)
 
 @app.post("/transcribe/batch")
 def transcribe_batch(req: BatchRequest):

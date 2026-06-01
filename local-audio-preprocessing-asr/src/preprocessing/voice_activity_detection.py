@@ -15,6 +15,7 @@ Methods implemented:
 
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
+import inspect
 
 import numpy as np
 
@@ -474,4 +475,9 @@ def detect_voice_activity(
             f"Unknown VAD method '{method}'. Choose from: {list(methods.keys())}"
         )
 
-    return methods[method](audio, sr, **kwargs)
+    # Only pass kwargs the target function actually accepts
+    fn = methods[method]
+    sig = inspect.signature(fn)
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+
+    return fn(audio, sr, **filtered_kwargs)
