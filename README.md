@@ -153,7 +153,8 @@ config.noise_reduction_prop_decrease = 0.95
 config.enable_deess = True
 pipeline = AudioPreprocessingPipeline(config)
 
-## Project Report: Local Audio Preprocessing for Better ASR Performance
+
+# Project Report: Local Audio Preprocessing for Better ASR Performance
 
 ### 1 Introduction
 Automatic Speech Recognition (ASR) has made remarkable progress in recent years, with models like Whisper, Wav2Vec 2.0, and Conformer achieving near-human performance on clean, well-recorded speech. However, real-world deployment scenarios rarely offer pristine audio conditions. Background noise, varying microphone quality, room acoustics, inconsistent recording levels, and speaker variability all contribute to significant degradation in ASR accuracy.
