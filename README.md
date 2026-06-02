@@ -152,7 +152,7 @@ config = PreprocessingConfig()
 config.noise_reduction_prop_decrease = 0.95
 config.enable_deess = True
 pipeline = AudioPreprocessingPipeline(config)
-
+```
 
 # Project Report: Local Audio Preprocessing for Better ASR Performance
 
