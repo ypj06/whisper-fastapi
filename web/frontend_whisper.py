@@ -178,8 +178,12 @@ with tab3:
         | 最小延迟 | `lightweight` |
         """)
 
-        # 最近一次预处理的结果
-        if st.session_state.get("preprocess_done"):
+        # 最近一次预处理的结果（只显示与当前预设匹配的结果）
+        result_matches = (
+            st.session_state.get("preprocess_done")
+            and st.session_state.get("preprocess_preset") == preset_choice
+        )
+        if result_matches:
             st.success(f"✅ 处理完成！文件: {st.session_state.preprocess_filename}")
             st.metric("处理耗时", f"{st.session_state.preprocess_stats.get('processing_time_total_ms', 0):.0f} ms")
             st.metric("时长变化", f"{st.session_state.preprocess_stats.get('input_duration_s', 0):.1f}s → {st.session_state.preprocess_stats.get('output_duration_s', 0):.1f}s")
@@ -225,8 +229,9 @@ with tab3:
                 # 解码 base64 音频
                 audio_bytes = base64.b64decode(data["processed_audio_base64"])
 
-                # 存入 session_state
+                # 存入 session_state（标记是哪个预设生成的）
                 st.session_state.preprocess_done = True
+                st.session_state.preprocess_preset = preset_choice
                 st.session_state.preprocess_filename = data["filename"]
                 st.session_state.preprocess_stats = data["stats"]
                 st.session_state.preprocess_clean_audio = audio_bytes
@@ -344,89 +349,101 @@ with tab4:
             if resp.ok:
                 data = resp.json()
 
-                st.success(f"✅ 完成！预设: {data['preset_used']}, 语言: {data['language']}")
-
-                # 统计信息
-                stats = data["stats"]
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.metric("原始时长", f"{stats['input_duration_s']:.1f}s")
-                with c2:
-                    st.metric("处理后时长", f"{stats['output_duration_s']:.1f}s")
-                with c3:
-                    st.metric("处理耗时", f"{stats['processing_time_total_ms']:.0f}ms")
-
-                # 并排显示转写对比
-                st.markdown("---")
-                st.markdown("### 📝 转写对比")
-
-                baseline_col, enhanced_col = st.columns(2)
-                with baseline_col:
-                    st.markdown("#### 🔴 原始音频（未预处理）")
-                    baseline_text = data["comparison"]["baseline_text"]
-                    st.text_area("原始转写", value=baseline_text, height=200, disabled=True)
-
-                    # 下载原始转写
-                    st.download_button(
-                        "⬇️ 下载原始 TXT",
-                        data=baseline_text,
-                        file_name=f"baseline_{uploaded_compare.name}.txt",
-                        use_container_width=True,
-                    )
-
-                    # 原始 SRT
-                    baseline_srt = data["baseline"].get("srt", "")
-                    if baseline_srt:
-                        with st.expander("原始 SRT", expanded=False):
-                            st.text(baseline_srt)
-
-                with enhanced_col:
-                    st.markdown("#### 🟢 预处理后音频")
-                    enhanced_text = data["comparison"]["enhanced_text"]
-                    st.text_area("预处理后转写", value=enhanced_text, height=200, disabled=True)
-
-                    # 下载预处理后转写
-                    st.download_button(
-                        "⬇️ 下载预处理后 TXT",
-                        data=enhanced_text,
-                        file_name=f"enhanced_{uploaded_compare.name}.txt",
-                        use_container_width=True,
-                    )
-
-                    # 预处理后 SRT
-                    enhanced_srt = data["enhanced"].get("srt", "")
-                    if enhanced_srt:
-                        with st.expander("预处理后 SRT", expanded=False):
-                            st.text(enhanced_srt)
-
-                # 粗略的 WER 变化估算
-                baseline_words = len(baseline_text.split())
-                enhanced_words = len(enhanced_text.split())
-                if baseline_words > 0 and enhanced_words > 0:
-                    diff_words = abs(baseline_words - enhanced_words)
-                    # 简单指标：文本长度变化率
-                    change_pct = (diff_words / baseline_words) * 100
-
-                    st.markdown("---")
-                    st.markdown("### 📊 粗略变化分析")
-                    info_cols = st.columns(3)
-                    with info_cols[0]:
-                        st.metric("原始词数", baseline_words)
-                    with info_cols[1]:
-                        st.metric("预处理后词数", enhanced_words)
-                    with info_cols[2]:
-                        st.metric("文本差异率", f"{change_pct:.1f}%")
-
-                # 所有 segments 详情
-                st.markdown("---")
-                with st.expander("📋 详细时间戳分段", expanded=False):
-                    st.markdown("**原始时间轴**")
-                    for seg in data["baseline"].get("segments", []):
-                        st.markdown(f"`{seg['start']:.1f}s - {seg['end']:.1f}s` {seg['text']}")
-
-                    st.markdown("**预处理后时间轴**")
-                    for seg in data["enhanced"].get("segments", []):
-                        st.markdown(f"`{seg['start']:.1f}s - {seg['end']:.1f}s` {seg['text']}")
-
+                # 存入 session_state（标记是哪个预设生成的）
+                st.session_state.compare_done = True
+                st.session_state.compare_preset_tag = compare_preset
+                st.session_state.compare_data = data
             else:
                 st.error(f"请求失败: {resp.text}")
+
+    # 显示 Tab 4 结果（只显示与当前预设匹配的结果）
+    if (
+        st.session_state.get("compare_done")
+        and st.session_state.get("compare_preset_tag") == compare_preset
+        and st.session_state.get("compare_data")
+    ):
+        data = st.session_state.compare_data
+
+        st.success(f"✅ 完成！预设: {data['preset_used']}, 语言: {data['language']}")
+
+        # 统计信息
+        stats = data["stats"]
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("原始时长", f"{stats['input_duration_s']:.1f}s")
+        with c2:
+            st.metric("处理后时长", f"{stats['output_duration_s']:.1f}s")
+        with c3:
+            st.metric("处理耗时", f"{stats['processing_time_total_ms']:.0f}ms")
+
+        # 并排显示转写对比
+        st.markdown("---")
+        st.markdown("### 📝 转写对比")
+
+        baseline_col, enhanced_col = st.columns(2)
+        with baseline_col:
+            st.markdown("#### 🔴 原始音频（未预处理）")
+            baseline_text = data["comparison"]["baseline_text"]
+            st.text_area("原始转写", value=baseline_text, height=200, disabled=True)
+
+            # 下载原始转写
+            st.download_button(
+                "⬇️ 下载原始 TXT",
+                data=baseline_text,
+                file_name=f"baseline_{uploaded_compare.name}.txt",
+                use_container_width=True,
+            )
+
+            # 原始 SRT
+            baseline_srt = data["baseline"].get("srt", "")
+            if baseline_srt:
+                with st.expander("原始 SRT", expanded=False):
+                    st.text(baseline_srt)
+
+        with enhanced_col:
+            st.markdown("#### 🟢 预处理后音频")
+            enhanced_text = data["comparison"]["enhanced_text"]
+            st.text_area("预处理后转写", value=enhanced_text, height=200, disabled=True)
+
+            # 下载预处理后转写
+            st.download_button(
+                "⬇️ 下载预处理后 TXT",
+                data=enhanced_text,
+                file_name=f"enhanced_{uploaded_compare.name}.txt",
+                use_container_width=True,
+            )
+
+            # 预处理后 SRT
+            enhanced_srt = data["enhanced"].get("srt", "")
+            if enhanced_srt:
+                with st.expander("预处理后 SRT", expanded=False):
+                    st.text(enhanced_srt)
+
+        # 粗略的 WER 变化估算
+        baseline_words = len(baseline_text.split())
+        enhanced_words = len(enhanced_text.split())
+        if baseline_words > 0 and enhanced_words > 0:
+            diff_words = abs(baseline_words - enhanced_words)
+            # 简单指标：文本长度变化率
+            change_pct = (diff_words / baseline_words) * 100
+
+            st.markdown("---")
+            st.markdown("### 📊 粗略变化分析")
+            info_cols = st.columns(3)
+            with info_cols[0]:
+                st.metric("原始词数", baseline_words)
+            with info_cols[1]:
+                st.metric("预处理后词数", enhanced_words)
+            with info_cols[2]:
+                st.metric("文本差异率", f"{change_pct:.1f}%")
+
+        # 所有 segments 详情
+        st.markdown("---")
+        with st.expander("📋 详细时间戳分段", expanded=False):
+            st.markdown("**原始时间轴**")
+            for seg in data["baseline"].get("segments", []):
+                st.markdown(f"`{seg['start']:.1f}s - {seg['end']:.1f}s` {seg['text']}")
+
+            st.markdown("**预处理后时间轴**")
+            for seg in data["enhanced"].get("segments", []):
+                st.markdown(f"`{seg['start']:.1f}s - {seg['end']:.1f}s` {seg['text']}")
