@@ -62,7 +62,7 @@ def spectral_gating_noise_reduction(
             prop_decrease=prop_decrease,
             n_std_thresh_stationary=n_std_thresh,
             use_torch=use_torch,
-            stationary=True,
+            stationary=False,
         )
         return reduced.astype(np.float32)
     except ImportError:
@@ -117,7 +117,8 @@ def spectral_subtraction(
     phase = np.angle(D)
 
     # Estimate noise spectrum from initial frames
-    noise_estimate = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)
+    "noise_estimate = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)"
+    noise_estimate = _get_min_energy_noise_profile(magnitude, noise_frames) 
 
     # Spectral subtraction with oversubtraction
     subtracted = magnitude - over_subtraction * noise_estimate
@@ -167,7 +168,8 @@ def wiener_filter(
     phase = np.angle(D)
 
     # Noise power spectrum estimate
-    noise_power = np.mean(power[:, :noise_frames], axis=1, keepdims=True)
+    "noise_power = np.mean(power[:, :noise_frames], axis=1, keepdims=True)"
+    noise_power = _get_min_energy_noise_profile(power, noise_frames)
 
     # Decision-directed a priori SNR estimation
     n_freqs, n_frames = power.shape
@@ -291,7 +293,8 @@ def multi_band_spectral_subtraction(
     phase = np.angle(D)
     freqs = np.fft.rfftfreq(n_fft, 1.0 / sr)[: magnitude.shape[0]]
 
-    noise_magnitude = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)
+    "noise_magnitude = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)"
+    noise_magnitude = _get_min_energy_noise_profile(magnitude, noise_frames)
 
     # Create band mask and apply different subtraction per band
     subtracted = magnitude.copy()
@@ -380,3 +383,29 @@ def reduce_noise(
     filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
 
     return fn(audio, sr, **filtered_kwargs)
+
+def _get_min_energy_noise_profile(spectrogram: np.ndarray, noise_frames: int) -> np.ndarray:
+    """
+    遍历整个频谱图，寻找能量最小（最安静）的连续 noise_frames 帧，
+    并返回这段区域的平均频谱作为噪声模板。
+    """
+    n_frames = spectrogram.shape[1]
+    
+    # 如果音频总长度比需要的噪声帧还要短，只能直接取全部平均
+    if n_frames <= noise_frames:
+        return np.mean(spectrogram, axis=1, keepdims=True)
+
+    # 1. 计算每一帧的总能量 (沿着频率轴求和)
+    frame_energies = np.sum(spectrogram, axis=0)
+
+    # 2. 使用滑动窗口计算连续 noise_frames 帧的能量总和
+    window = np.ones(noise_frames)
+    sliding_energy = np.convolve(frame_energies, window, mode='valid')
+
+    # 3. 找到能量最小的窗口的起始索引
+    min_energy_idx = np.argmin(sliding_energy)
+
+    # 4. 提取最安静的窗口，并计算其平均频谱
+    quietest_spectrogram = spectrogram[:, min_energy_idx : min_energy_idx + noise_frames]
+    
+    return np.mean(quietest_spectrogram, axis=1, keepdims=True)

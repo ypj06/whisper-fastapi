@@ -1,0 +1,21 @@
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 环境变量和配置
+.env
+config.json
+
+# 模型文件和测试媒体
+web/models/
+*.mp4
+*.mp3
+*.wav
+
+# IDE 缓存
+.vscode/
