@@ -1,5 +1,5 @@
 
-# Vidsight · YouTube Knowledge Extraction
+# YouTube Knowledge Extraction
 > Paste any YouTube link with subtitles → Gemini generates well-structured Chinese articles in real time. Each chapter supports one-click **5W1H** summary.
 
 Fully deployed on **Cloudflare Workers**: zero cold start, global edge network. The frontend is a build-free single-page application (SPA) served via Workers Assets. Both frontend and backend are developed in TypeScript with clear module boundaries; every source file stays around 400 lines or fewer.
