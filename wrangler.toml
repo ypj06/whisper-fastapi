@@ -14,13 +14,9 @@ binding = "ASSETS"
 
 # 会话上下文存储（用于章节 5W1H：前端不重传文章，仅带 sessionId）
 # 首次部署前请创建两个 KV namespace 并把返回的 id / preview_id 填到下方：
-#   wrangler kv namespace create SESSIONS
-#   wrangler kv namespace create SESSIONS --preview
+wrangler kv namespace create SESSIONS
+wrangler kv namespace create SESSIONS --preview
 # 本地 `wrangler dev` 会使用 miniflare 的内存 KV，可以不改 id 直接跑。
-[[kv_namespaces]]
-binding = "SESSIONS"
-id = "38b916ce17ee49a9bf5f94d215752d90"
-preview_id = "19a695515a4443e48b4370008b536ba6"
 
 
 [vars]
