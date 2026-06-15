@@ -1,0 +1,23 @@
+# Install:
+#   pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+#   pip install torch torchvision torchaudio -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# ASR
+faster-whisper
+
+# Web framework
+fastapi
+uvicorn
+streamlit
+requests
+
+# Audio processing
+librosa
+soundfile
+numpy
+scipy
+noisereduce
+pydub
+
+# Visualization
+matplotlib
