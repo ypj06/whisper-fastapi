@@ -19,8 +19,9 @@ binding = "ASSETS"
 # 本地 `wrangler dev` 会使用 miniflare 的内存 KV，可以不改 id 直接跑。
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_YOUR_KV_ID"
-preview_id = "REPLACE_WITH_YOUR_PREVIEW_KV_ID"
+id = "38b916ce17ee49a9bf5f94d215752d90"
+preview_id = "19a695515a4443e48b4370008b536ba6"
+
 
 [vars]
 # YouTube 字幕抓取失败时是否回落到内置 demo 字幕，让产品始终可用

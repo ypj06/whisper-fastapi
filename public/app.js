@@ -1,13 +1,6 @@
 /**
  * 视见 Vidsight — 前端入口
- *
- * 设计要点：
- *  1. 主文章用 SSE 流式接收。每次拿到 token 都 append 到 buffer，
- *     然后用 markdown-it 把 buffer 重新渲染成 HTML，写入容器。
- *     —— 这样能在流式过程中也正确显示 Markdown 排版，而不是看到原始 *、## 等。
- *  2. 流结束后扫描所有 <h2>，注入「5W1H」按钮。点击 → 调 /api/5w1h 并打开抽屉。
- *  3. 章节索引：服务端 splitChapters 与前端渲染顺序一致（都按 ## 出现顺序）。
- *  4. 所有渲染后的 HTML 都过 DOMPurify。
+ * 新增：本地字幕文件上传 & 解析支持
  */
 
 import MarkdownIt from "markdown-it";
@@ -56,18 +49,100 @@ const ui = {
   drawerEyebrow: $("#drawer-eyebrow"),
   drawerTitle: $("#drawer-title"),
   drawerBody: $("#drawer-body"),
+
+  // 新增文件上传相关 DOM
+  fileInput: $("#file-input"),
+  fileStatus: $("#file-status"),
+  clearFileBtn: $("#clear-file"),
 };
 
 const state = {
   sessionId: null,
   articleBuf: "",
   abortController: null,
-  chapters: [], // { index, title }
+  chapters: [],
   transcript: null,
+  uploadedText: "", // 存放解析后的本地字幕文本
 };
 
-/* ----------------------- Presets ----------------------- */
+/* ----------------------- 字幕解析工具 ----------------------- */
+function parseSubtitle(rawText, fileName) {
+  const lowerName = fileName.toLowerCase();
+  let text = rawText;
 
+  // VTT 格式清洗
+  if (lowerName.endsWith(".vtt")) {
+    text = text
+      .replace(/^WEBVTT\s*\n+/i, "")
+      .replace(/\d{2}:\d{2}:\d{2}\.\d{3}\s*-->.*\n/g, "")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
+  }
+  // SRT 格式清洗
+  else if (lowerName.endsWith(".srt")) {
+    text = text
+      .replace(/^\d+$/gm, "")
+      .replace(/\d{2}:\d{2}:\d{2},\d{3}\s*-->.*\n/g, "")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
+  }
+  // txt 直接返回原文
+  return text;
+}
+
+/* ----------------------- 文件上传监听 ----------------------- */
+ui.fileInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    state.uploadedText = "";
+    ui.fileStatus.textContent = "";
+    ui.clearFileBtn.style.display = "none";
+    return;
+  }
+
+  // 简单限制文件大小 5MB
+  const MAX_SIZE = 5 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    ui.fileStatus.textContent = "文件过大，仅支持 5MB 以内";
+    ui.fileStatus.style.color = "#ef4444";
+    state.uploadedText = "";
+    return;
+  }
+
+  ui.fileStatus.textContent = "正在解析文件...";
+  ui.fileStatus.style.color = "#666";
+  ui.clearFileBtn.style.display = "inline-block";
+
+  try {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const raw = ev.target.result;
+      state.uploadedText = parseSubtitle(raw, file.name);
+      ui.fileStatus.textContent = `已加载：${file.name}（共${state.uploadedText.length}字）`;
+      ui.fileStatus.style.color = "#10b981";
+    };
+    reader.onerror = () => {
+      ui.fileStatus.textContent = "文件读取失败";
+      ui.fileStatus.style.color = "#ef4444";
+      state.uploadedText = "";
+    };
+    reader.readAsText(file);
+  } catch (err) {
+    ui.fileStatus.textContent = "解析异常";
+    ui.fileStatus.style.color = "#ef4444";
+    state.uploadedText = "";
+  }
+});
+
+// 清空已选文件
+ui.clearFileBtn.addEventListener("click", () => {
+  ui.fileInput.value = "";
+  state.uploadedText = "";
+  ui.fileStatus.textContent = "";
+  ui.clearFileBtn.style.display = "none";
+});
+
+/* ----------------------- Presets ----------------------- */
 const PRESETS = {
   exec: {
     taskType: "深度商业洞察",
@@ -137,7 +212,6 @@ window.addEventListener("scroll", () => {
 }, { passive: true });
 
 /* ----------------------- 状态显示 ----------------------- */
-
 function setStatus(text, kind = "idle") {
   ui.statusBar.hidden = false;
   ui.statusText.textContent = text;
@@ -197,7 +271,6 @@ function fallbackCopyText(text) {
 }
 
 /* ----------------------- 渲染 ----------------------- */
-
 function renderArticleBuf() {
   const html = md.render(state.articleBuf);
   ui.articleBody.innerHTML = DOMPurify.sanitize(html, { ADD_ATTR: ["target", "rel"] });
@@ -254,7 +327,6 @@ function showMeta(meta) {
 }
 
 /* ----------------------- 章节按钮注入 ----------------------- */
-
 function injectChapterButtons() {
   const headings = ui.articleBody.querySelectorAll("h2");
   headings.forEach((h2, idx) => {
@@ -271,7 +343,6 @@ function injectChapterButtons() {
 }
 
 /* ----------------------- 5W1H 抽屉 ----------------------- */
-
 function openDrawer(title, eyebrow = "5W1H · 章节结构化总结") {
   ui.drawer.hidden = false;
   ui.drawer.setAttribute("aria-hidden", "false");
@@ -407,7 +478,6 @@ async function requestFiveW1H(chapterIndex, chapterTitle, btn) {
 }
 
 /* ----------------------- 提交 + SSE ----------------------- */
-
 ui.stopBtn.addEventListener("click", () => {
   if (state.abortController) {
     state.abortController.abort();
@@ -419,8 +489,11 @@ ui.form.addEventListener("submit", async (e) => {
   hideError();
 
   const url = ui.urlInput.value.trim();
-  if (!url) {
-    showError("请输入 YouTube 链接");
+  const hasFileText = !!state.uploadedText;
+
+  // 校验：链接 和 上传文件 二选一
+  if (!url && !hasFileText) {
+    showError("请输入 YouTube 链接 或 上传本地字幕文件");
     return;
   }
 
@@ -450,20 +523,27 @@ ui.form.addEventListener("submit", async (e) => {
   ui.copyArticleBtn.hidden = true;
 
   setSubmitting(true);
-  setStatus("正在抓取字幕…", "active");
+  setStatus("正在处理内容…", "active");
 
   const ac = new AbortController();
   state.abortController = ac;
 
   try {
+    const payload = {
+      preferences,
+      forceDemo: ui.forceDemo.checked,
+    };
+    // 优先传本地解析文本，否则传 url
+    if (hasFileText) {
+      payload.localText = state.uploadedText;
+    } else {
+      payload.url = url;
+    }
+
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url,
-        preferences,
-        forceDemo: ui.forceDemo.checked,
-      }),
+      body: JSON.stringify(payload),
       signal: ac.signal,
     });
 
@@ -498,7 +578,6 @@ ui.form.addEventListener("submit", async (e) => {
           ui.copyArticleBtn.hidden = !state.articleBuf.trim();
           setStatus(`生成完成 · ${state.chapters.length} 个章节，点击章节标题旁的 5W1H 查看`, "done");
         } else if (event === "error") {
-          // 服务器主动告知错误；记录下来在流结束后再抛，避免被 readSse 的 try/catch 吞掉
           serverError = new Error(data.message || "服务端返回错误");
         }
       },
@@ -506,7 +585,7 @@ ui.form.addEventListener("submit", async (e) => {
     if (serverError) throw serverError;
     if (!sawAnyEvent) throw new Error("服务端没有返回任何事件（可能流被中断）");
     if (!state.articleBuf.trim()) {
-      throw new Error("AI 未返回任何内容，请检查服务端 GEMINI_API_KEY / 模型 / 网络（可访问 /api/health 或 /api/debug/gemini 进一步排查）");
+      throw new Error("AI 未返回任何内容，请检查服务端 GEMINI_API_KEY / 模型 / 网络");
     }
   } catch (e) {
     if (e.name === "AbortError") {
@@ -533,7 +612,6 @@ function autoScrollIfAtBottom() {
 
 /**
  * 解析 SSE 流（fetch + ReadableStream）
- * 每个事件块用 \n\n 分割，事件块内每行 "key: value"
  */
 async function readSse(body, { onEvent }) {
   const reader = body.getReader();
@@ -543,7 +621,6 @@ async function readSse(body, { onEvent }) {
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
-    // 容忍上游 CRLF 行尾，统一成 \n 后按 \n\n 拆事件
     buf += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
 
     let idx;
@@ -563,9 +640,9 @@ async function readSse(body, { onEvent }) {
       try {
         json = JSON.parse(payload);
       } catch {
-        continue; // 跳过非 JSON 心跳 / 注释
+        continue;
       }
-      onEvent(event, json); // 不再 try/catch 吞错；让上层处理
+      onEvent(event, json);
     }
   }
 }

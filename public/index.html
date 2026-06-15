@@ -90,6 +90,19 @@
             </div>
           </label>
 
+          <!-- ========== 新增：文件上传区域 ========== -->
+          <label class="field" style="margin-top: 1rem;">
+            <span class="field__label">或上传本地字幕文件</span>
+            <div class="field__input-wrap">
+              <input type="file" id="file-input" accept=".txt,.vtt,.srt" style="padding: 0.5rem;">
+            </div>
+            <div class="field__hint">
+              <span id="file-status" style="color:#666;"></span>
+              <button type="button" class="link-btn" id="clear-file" style="display:none;margin-left:0.5rem;">清空文件</button>
+            </div>
+          </label>
+          <!-- ======================================= -->
+
           <details class="advanced" id="advanced">
             <summary>
               <span class="advanced__title">高级生成要求</span>

@@ -144,10 +144,12 @@ app.get("/api/debug/gemini", async (c) => {
 /* -------------------- 主文章：SSE 流式生成 -------------------- */
 
 interface GenerateBody {
-  url: string;
+  url?: string;
   preferences?: GenerationPreferences;
   /** 调试 / 离线演示：强制使用内置 demo 字幕，跳过 YouTube 抓取 */
   forceDemo?: boolean;
+  /** 本地上传解析后的纯文本字幕 */
+  localText?: string;
 }
 
 app.post("/api/generate", async (c) => {
@@ -157,9 +159,6 @@ app.post("/api/generate", async (c) => {
   } catch {
     return c.json({ error: "请求体必须是合法 JSON" }, 400);
   }
-
-  const videoId = parseVideoId(body.url);
-  if (!videoId) return c.json({ error: "无法解析视频链接，请检查输入" }, 400);
 
   if (!c.env.GEMINI_API_KEY) {
     return c.json(
@@ -171,12 +170,39 @@ app.post("/api/generate", async (c) => {
   const preferences = body.preferences ?? {};
   const demoFallback = c.env.DEMO_FALLBACK !== "false"; // 默认开启
 
-  // 字幕需要在 SSE 流之前拿到，meta 事件才能立刻发出
-  let transcript;
+  // 字幕容器
+  let transcript: {
+    title: string;
+    author: string;
+    source: string;
+    language: string;
+    cues: Array<{ text: string }>;
+    fullText: string;
+  };
   let transcriptError: TranscriptError | null = null;
-  if (body.forceDemo === true) {
+  let videoId = "";
+
+  // 优先级：本地字幕 > 强制Demo > YouTube链接
+  if (body.localText && body.localText.trim()) {
+    // 使用本地上传字幕，构造统一格式
+    transcript = {
+      title: "本地字幕文件",
+      author: "手动上传",
+      source: "local",
+      language: "zh-CN",
+      cues: body.localText.trim().split(/\n+/).map(text => ({ text })),
+      fullText: body.localText.trim()
+    };
+    videoId = "local-file";
+  } else if (body.forceDemo === true) {
+    // 强制使用演示字幕
+    videoId = parseVideoId(body.url || "") || "demo";
     transcript = getDemoTranscript(videoId);
-  } else {
+  } else if (body.url) {
+    // 正常走 YouTube 抓取逻辑
+    videoId = parseVideoId(body.url);
+    if (!videoId) return c.json({ error: "无法解析视频链接，请检查输入" }, 400);
+
     try {
       transcript = await fetchTranscript(videoId, {
         proxy: c.env.WEBSHARE_PROXY,
@@ -193,6 +219,9 @@ app.post("/api/generate", async (c) => {
         );
       }
     }
+  } else {
+    // 无任何有效输入
+    return c.json({ error: "请填写 YouTube 链接 或 上传本地字幕文件" }, 400);
   }
 
   const sessionId = newSessionId();
@@ -214,7 +243,7 @@ app.post("/api/generate", async (c) => {
         send("meta", {
           sessionId,
           videoId,
-          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          videoUrl: body.url || "",
           title: transcript.title,
           author: transcript.author,
           source: transcript.source,
@@ -250,7 +279,7 @@ app.post("/api/generate", async (c) => {
           createdAt: Date.now(),
           videoId,
           videoTitle: transcript.title,
-          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          videoUrl: body.url || "",
           preferences,
           transcript: {
             source: transcript.source,
