@@ -1,3 +1,6 @@
+## 📸 Demo Preview
+<img width="2336" height="1020" alt="image" src="https://github.com/user-attachments/assets/90c4a3f1-2e5a-40e8-8d13-5b5642343324" />
+
 
 # YouTube Knowledge Extraction
 > Paste any YouTube link with subtitles → Gemini generates well-structured Chinese articles in real time. Each chapter supports one-click **5W1H** summary.
